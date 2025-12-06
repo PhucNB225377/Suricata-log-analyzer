@@ -1,0 +1,7 @@
+.vscode/
+build/
+*.exe
+*.dll
+*.o
+sample/eve_total.json
+sample/test.sh
