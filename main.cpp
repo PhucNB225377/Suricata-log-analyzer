@@ -184,28 +184,30 @@ void process_data(SharedQueue<nlohmann::json> &parsed_queue) {
 }
 
 void print_data() {
-    std::vector<sll> src_ips, dest_ips, countries;
-    std::map<std::string, long long> categories;
-    std::map<double, long long> attacks;
+    // std::vector<sll> src_ips, dest_ips, countries;
+    // std::map<std::string, long long> categories;
+    // std::map<double, long long> attacks;
+    long long s = 0;
     while (1) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        src_ips.clear();
-        dest_ips.clear();
-        countries.clear();
+        // src_ips.clear();
+        // dest_ips.clear();
+        // countries.clear();
         {
             std::lock_guard<std::mutex> lock(mtx);
-            if (src_ip_total.empty()) continue;
+        //     if (src_ip_total.empty()) continue;
 
-            src_ips.assign(src_ip_total.begin(), src_ip_total.end());
-            dest_ips.assign(dest_ip_total.begin(), dest_ip_total.end());
-            countries.assign(country_total.begin(), country_total.end());
-            categories = category_total;
-            attacks = attacks_per_hour;
+        //     src_ips.assign(src_ip_total.begin(), src_ip_total.end());
+        //     dest_ips.assign(dest_ip_total.begin(), dest_ip_total.end());
+        //     countries.assign(country_total.begin(), country_total.end());
+        //     categories = category_total;
+        //     attacks = attacks_per_hour;
+            s = sum;
         }
-        desc_sort(src_ips);
-        desc_sort(dest_ips);
-        desc_sort(countries);
+        // desc_sort(src_ips);
+        // desc_sort(dest_ips);
+        // desc_sort(countries);
 
         // std::cout << "\n================*******================" << std::endl;
         // std::cout << "- Top source IP:" << std::endl;
@@ -230,7 +232,7 @@ void print_data() {
 
         // std::cout << "- Number of attacks per hour:" << std::endl;
         // for (const auto &i : attacks) std::cout << "     " << i.first << ": " << i.second << std::endl;
-        std::cout << sum << std::endl;
+        std::cout << s << std::endl;
         std::cout << "===========================================" << std::endl;
     }
 }
