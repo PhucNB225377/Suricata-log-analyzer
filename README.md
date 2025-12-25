@@ -17,7 +17,7 @@ A multi-threaded C++ application designed to parse, analyze, and visualize Suric
 * JSON Parsing: nlohmann/json
 * Geolocation: IP2Location
 
-### Build
+## Build
 
 ### 1. Windows (MinGW)
 
