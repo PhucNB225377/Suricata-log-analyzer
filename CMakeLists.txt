@@ -35,8 +35,6 @@ include_directories(
     ${OTHERS_DIR}
 )
 
-link_directories(${GLFW_DIR}/lib-mingw-w64)
-
 add_executable(${PROJECT_NAME}
     main.cpp
     ${IMGUI_SOURCES}
@@ -44,4 +42,10 @@ add_executable(${PROJECT_NAME}
     ${OTHERS_SOURCES}
 )
 
-target_link_libraries(${PROJECT_NAME} glfw3 opengl32 gdi32 user32 ws2_32)
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} "${GLFW_DIR}/lib-mingw-w64/libglfw3.a" opengl32 gdi32 user32 ws2_32)
+elseif (UNIX)
+    find_package(OpenGL REQUIRED)
+    find_package(Threads REQUIRED)
+    target_link_libraries(${PROJECT_NAME} glfw OpenGL::GL Threads::Threads dl X11)
+endif()

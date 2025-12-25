@@ -27,19 +27,19 @@ struct LogInfo {
     std::string src_ip;
     std::string dest_ip;
     std::string country;
-    std::string category;
+    std::string signature;
 };
 
 struct BarDetail {
     std::map<std::string, long long> src_count;
     std::map<std::string, long long> dest_count;
-    std::map<std::string, long long> category_count;
+    std::map<std::string, long long> signature_count;
     std::map<std::string, long long> country_count;
 };
 
-const std::string FILE_NAME = "sample/eve.json";
+const std::string FILE_NAME = "sample/eve.json"; // Change correct path
 std::vector<LogInfo> all_logs;
-std::map<std::string, long long> src_ip_total, dest_ip_total, country_total, category_total;
+std::map<std::string, long long> src_ip_total, dest_ip_total, country_total, signature_total;
 std::map<double, long long> attacks_per_hour, attacks_per_minute;
 std::map<double, BarDetail> all_bar_hour, all_bar_minute;
 long long sum = 0;
@@ -127,7 +127,7 @@ void parse_data(SharedQueue<nlohmann::json> &read_queue, SharedQueue<nlohmann::j
             parsed_queue.push({
                 {"src_ip", j.value("src_ip", "0.0.0.0")},
                 {"dest_ip", dest_ip},
-                {"category", j["alert"]["category"]},
+                {"signature", j["alert"]["signature"]},
                 {"timestamp", j["timestamp"]},
                 {"country", country_name}
             });
@@ -146,33 +146,33 @@ void process_data(SharedQueue<nlohmann::json> &parsed_queue) {
         std::string src_ip = j["src_ip"];
         std::string dest_ip = j["dest_ip"];
         std::string country = j["country"];
-        std::string category = j["category"];
+        std::string signature = j["signature"];
 
         LogInfo info;
         info.timestamp = time;
         info.src_ip = src_ip;
         info.dest_ip = dest_ip;
         info.country = country;
-        info.category = category;
+        info.signature = signature;
 
         {
             std::lock_guard<std::mutex> lock(mtx);
             sum++;
             src_ip_total[src_ip]++;
             dest_ip_total[dest_ip]++;
-            category_total[category]++;
+            signature_total[signature]++;
             country_total[country]++;
             attacks_per_hour[time_hour]++;
             attacks_per_minute[time_minute]++;
 
             all_bar_hour[time_hour].src_count[src_ip]++;
             all_bar_hour[time_hour].dest_count[dest_ip]++;
-            all_bar_hour[time_hour].category_count[category]++;
+            all_bar_hour[time_hour].signature_count[signature]++;
             all_bar_hour[time_hour].country_count[country]++;
 
             all_bar_minute[time_minute].src_count[src_ip]++;
             all_bar_minute[time_minute].dest_count[dest_ip]++;
-            all_bar_minute[time_minute].category_count[category]++;
+            all_bar_minute[time_minute].signature_count[signature]++;
             all_bar_minute[time_minute].country_count[country]++;
 
             all_logs.push_back(info);
@@ -185,7 +185,7 @@ void process_data(SharedQueue<nlohmann::json> &parsed_queue) {
 
 void print_data() {
     // std::vector<sll> src_ips, dest_ips, countries;
-    // std::map<std::string, long long> categories;
+    // std::map<std::string, long long> signatures;
     // std::map<double, long long> attacks;
     long long s = 0;
     while (1) {
@@ -201,7 +201,7 @@ void print_data() {
         //     src_ips.assign(src_ip_total.begin(), src_ip_total.end());
         //     dest_ips.assign(dest_ip_total.begin(), dest_ip_total.end());
         //     countries.assign(country_total.begin(), country_total.end());
-        //     categories = category_total;
+        //     signatures = signature_total;
         //     attacks = attacks_per_hour;
             s = sum;
         }
@@ -225,8 +225,8 @@ void print_data() {
         // std::cout << "     " << countries[i].first << ": " << countries[i].second << std::endl;
         // std::cout << std::endl;
 
-        // std::cout << "- Attacks by category:" << std::endl;
-        // for (const auto &i : categories)
+        // std::cout << "- Attacks by signature:" << std::endl;
+        // for (const auto &i : signatures)
         // std::cout << "     " << i.first << ": " << i.second << std::endl;
         // std::cout << std::endl;
 
@@ -357,26 +357,26 @@ void ShowTopCountry() {
     }
 }
 
-// CategoryTable
-void ShowCategoryTable() {
-    std::vector<sll> categories;
+// SignatureTable
+void ShowSignatureTable() {
+    std::vector<sll> signatures;
     {
         std::lock_guard<std::mutex> lock(mtx);
-        if (category_total.empty()) {
+        if (signature_total.empty()) {
             ImGui::Text("No data available.");
             return;
         }
-        categories.assign(category_total.begin(), category_total.end());
+        signatures.assign(signature_total.begin(), signature_total.end());
     }
-    desc_sort(categories);
+    desc_sort(signatures);
 
-    ImGui::Text("Category Statistics");
-    if (ImGui::BeginTable("CategoryTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, -1))) {
-        ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthStretch); 
+    ImGui::Text("Signature Statistics");
+    if (ImGui::BeginTable("SignatureTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, -1))) {
+        ImGui::TableSetupColumn("Signature", ImGuiTableColumnFlags_WidthStretch); 
         ImGui::TableSetupColumn("Attacks", ImGuiTableColumnFlags_WidthFixed, 150.0f);
         ImGui::TableHeadersRow();
 
-        for (const auto &i : categories) {
+        for (const auto &i : signatures) {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%s", i.first.c_str());
@@ -385,6 +385,122 @@ void ShowCategoryTable() {
         }
         ImGui::EndTable();
     }
+}
+
+struct TimeState {
+    int year_idx = 10;
+    int month_idx = 0;
+    int day_idx = 0;
+    int hour_idx = 0;
+    int minute_idx = 0;
+};
+
+const char* years[] = {
+    "2015","2016", "2017", "2018", "2019", "2020",
+    "2021", "2022", "2023", "2024", "2025", "2026",
+    "2027", "2028", "2029", "2030", "2031", "2032",
+    "2033", "2034", "2035", "2036", "2037", "2038",
+    "2039", "2040", "2041", "2042", "2043", "2044",
+    "2045", "2046", "2047", "2048", "2049", "2050"
+};
+const char* months[] = {
+    "01", "02", "03", "04", "05", "06",
+    "07", "08", "09", "10", "11", "12"
+};
+const char* days[] = {
+    "01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
+    "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+    "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"
+};
+const char* hours[] = {
+    "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11",
+    "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"
+};
+const char* minutes[] = {
+    "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11",
+    "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23",
+    "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35",
+    "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47",
+    "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59"
+};
+
+// TimePicker
+std::string TimePicker(const char* label, TimeState &state) {
+    ImGui::PushID(label);
+
+    ImGuiComboFlags flags = ImGuiComboFlags_NoArrowButton | ImGuiComboFlags_WidthFitPreview;
+
+    const char* hour = hours[state.hour_idx];
+    if (ImGui::BeginCombo("##hour", hour, flags)) {
+        for (int i = 0; i < 24; i++) {
+            if (ImGui::Selectable(hours[i], state.hour_idx == i)) {
+                state.hour_idx = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::Text(":");
+    ImGui::SameLine();
+
+    const char* minute = minutes[state.minute_idx];
+    if (ImGui::BeginCombo("##minute", minute, flags)) {
+        for (int i = 0; i < 60; i++) {
+            if (ImGui::Selectable(minutes[i], state.minute_idx == i)) {
+                state.minute_idx = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::Text(" ");
+    ImGui::SameLine();
+
+    const char* day = days[state.day_idx];
+    if (ImGui::BeginCombo("##day", day, flags)) {
+        for (int i = 0; i < 31; i++) {
+            if (ImGui::Selectable(days[i], state.day_idx == i)) {
+                state.day_idx = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("/");
+    ImGui::SameLine();
+
+    const char* month = months[state.month_idx];
+    if (ImGui::BeginCombo("##month", month, flags)) {
+        for (int i = 0; i < 12; i++) {
+            if (ImGui::Selectable(months[i], state.month_idx == i)) {
+                state.month_idx = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("/");
+    ImGui::SameLine();
+
+    const char* year = years[state.year_idx];
+    if (ImGui::BeginCombo("##year", year, flags)) {
+        for (int i = 0; i < 36; i++) {
+            if (ImGui::Selectable(years[i], state.year_idx == i)) {
+                state.year_idx = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::PopID();
+
+    std::ostringstream ss;
+    ss << year << "-" << month << "-" << day << "T" << hour << ":" << minute;
+    return ss.str();
 }
 
 // AttackTrend
@@ -416,49 +532,118 @@ void ShowAttackTrend() {
     ImGui::SameLine();
     ImGui::Text("|");
     ImGui::SameLine();
+    ImGui::Text(" ");
+    ImGui::SameLine();
 
-    if (ImGui::Button("Last 1 hour")) {
-        is_filter = true;
-        is_live = false;
-        min_x = now - 3600;
-        max_x = now;
+    if (ImGui::Button("Hours")) {
+        ImGui::OpenPopup("menu_hours");
+    }
+    if (ImGui::BeginPopup("menu_hours")) {
+        for (int i = 1; i <= 3; i++) {
+            if (ImGui::Selectable(("Last " + std::to_string(i) + " hour" + (i > 1 ? "s" : "")).c_str())) {
+                is_filter = true;
+                is_live = false;
+                min_x = now - i * 3600;
+                max_x = now;
+            }
+        }
+        ImGui::EndPopup();
     }
 
     ImGui::SameLine();
+    ImGui::Text(" ");
+    ImGui::SameLine();
 
-    if (ImGui::Button("Last 1 day")) {
-        is_filter = true;
-        is_live = false;
-        min_x = now - 86400;
-        max_x = now;
+    if (ImGui::Button("Days")) {
+        ImGui::OpenPopup("menu_days");
+    }
+    if (ImGui::BeginPopup("menu_days")) {
+        for (int i = 1; i <= 3; i++) {
+            if (ImGui::Selectable(("Last " + std::to_string(i) + " day" + (i > 1 ? "s" : "")).c_str())) {
+                is_filter = true;
+                is_live = false;
+                min_x = now - i * 86400;
+                max_x = now;
+            }
+        }
+        ImGui::EndPopup();
     }
 
     ImGui::SameLine();
+    ImGui::Text(" ");
+    ImGui::SameLine();
 
-    if (ImGui::Button("Last 3 days")) {
-        is_filter = true;
-        is_live = false;
-        min_x = now - 259200;
-        max_x = now;
+    if (ImGui::Button("Weeks")) {
+        ImGui::OpenPopup("menu_weeks");
+    }
+    if (ImGui::BeginPopup("menu_weeks")) {
+        for (int i = 1; i <= 3; i++) {
+            if (ImGui::Selectable(("Last " + std::to_string(i) + " week" + (i > 1 ? "s" : "")).c_str())) {
+                is_filter = true;
+                is_live = false;
+                min_x = now - i * 604800;
+                max_x = now;
+            }
+        }
+        ImGui::EndPopup();
     }
 
-    static char from[30], to[30];
+    ImGui::SameLine();
+    ImGui::Text(" ");
+    ImGui::SameLine();
+
+    if (ImGui::Button("Months")) {
+        ImGui::OpenPopup("menu_months");
+    }
+    if (ImGui::BeginPopup("menu_months")) {
+        for (int i = 1; i <= 3; i++) {
+            if (ImGui::Selectable(("Last " + std::to_string(i) + " month" + (i > 1 ? "s" : "")).c_str())) {
+                is_filter = true;
+                is_live = false;
+                min_x = now - i * 2592000;
+                max_x = now;
+            }
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::SameLine();
+    ImGui::Text(" ");
+    ImGui::SameLine();
+
+    if (ImGui::Button("Years")) {
+        ImGui::OpenPopup("menu_years");
+    }
+    if (ImGui::BeginPopup("menu_years")) {
+        for (int i = 1; i <= 3; i++) {
+            if (ImGui::Selectable(("Last " + std::to_string(i) + " year" + (i > 1 ? "s" : "")).c_str())) {
+                is_filter = true;
+                is_live = false;
+                min_x = now - i * 31536000;
+                max_x = now;
+            }
+        }
+        ImGui::EndPopup();
+    }
+
+    // Advance filter
+    std::string from, to;
     static bool input_error = false;
+    static TimeState from_state, to_state;
     ImGui::Text("Advance:");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(200);
-    ImGui::InputTextWithHint("##from", "2022-12-31T01:00", from, IM_ARRAYSIZE(from));
+    ImGui::Text(" ");
     ImGui::SameLine();
-    ImGui::Text("-");
+    from = TimePicker("from", from_state);
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(200);
-    ImGui::InputTextWithHint("##to", "2025-12-31T01:00 or now", to, IM_ARRAYSIZE(to));
+    ImGui::Text(" => ");
+    ImGui::SameLine();
+    to = TimePicker("to", to_state);
     ImGui::SameLine();
 
     if (ImGui::Button("Apply")) {
-        std::string start(from), end(to);
-        double t1 = parse_timestamp(start, true);
-        double t2 = parse_timestamp(end, true);
+        double t1 = parse_timestamp(from, true);
+        double t2 = parse_timestamp(to, true);
         if (t1 == -1 || t2 == -1 || t1 > t2) {
             input_error = true;
         }
@@ -473,7 +658,7 @@ void ShowAttackTrend() {
 
     if (input_error) {
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1, 0, 0, 1), "ERROR: Wrong input");
+        ImGui::TextColored(ImVec4(1, 0, 0, 1), "ERROR: Wrong time input");
     }
 
     std::vector<double> x_hour, y_hour;
@@ -510,9 +695,18 @@ void ShowAttackTrend() {
     static long long selected_attacks;
     static bool open_popup = false;
 
+    // Threshold for colormap & slider
+    static int color_threshold = 100;
+    ImGui::Text("Color threshold:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(500);
+    ImGui::SliderInt("##threshold", &color_threshold, 10, 5000);
+    ImGui::SameLine();
+
     // Draw graph
     ImGui::Text("Attack Trend");
-    if (ImPlot::BeginPlot("AttackTrend", ImVec2(-1, -1))) {
+    ImPlot::GetStyle().Use24HourClock = true;
+    if (ImPlot::BeginPlot("AttackTrend", ImVec2(ImGui::GetContentRegionAvail().x - 68, -1))) {
         ImPlot::SetupAxes("Time", "Attacks");
         ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Time);
 
@@ -525,8 +719,7 @@ void ShowAttackTrend() {
         if (show_hour) ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_val_hour * 1.2, ImPlotCond_Always);
         else ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_val_minute * 1.2, ImPlotCond_Always);
 
-        double current_range = ImPlot::GetPlotLimits().X.Max - ImPlot::GetPlotLimits().X.Min;
-        show_hour = (current_range >= 86400);
+        show_hour = (ImPlot::GetPlotLimits().X.Size() >= 86400);
 
         std::vector<double> &x = show_hour ? x_hour : x_minute;
         std::vector<double> &y = show_hour ? y_hour : y_minute;
@@ -534,11 +727,17 @@ void ShowAttackTrend() {
         double width = show_hour ? 3600 : 60;
 
         if (!x.empty()) {
-            ImPlot::PlotBars("##attacks", x.data(), y.data(), x.size(), width);
-
-            ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-            ImPlot::PlotBars("##hightlight", &x[max_idx], &y[max_idx], 1, width);
-            ImPlot::PopStyleColor();
+            ImPlot::PushColormap(ImPlotColormap_Jet);
+            for (int i = 0; i < x.size(); i++) {
+                float t = y[i] / color_threshold;
+                if (t > 1.0) t = 1.0;
+                ImPlot::PushStyleColor(ImPlotCol_Fill, ImPlot::SampleColormap(t));
+                ImPlot::PlotBars("##attacks", &x[i], &y[i], 1, width);
+                ImPlot::PopStyleColor();
+            }
+            ImGui::SameLine();
+            ImPlot::ColormapScale("##scale", 0, (double)color_threshold, ImVec2(60, -1));
+            ImPlot::PopColormap();
         }
 
         // Hover
@@ -546,7 +745,7 @@ void ShowAttackTrend() {
             ImPlotPoint mouse = ImPlot::GetPlotMousePos();
             for (int i = 0; i < x.size(); i++) {
                 if (mouse.x >= (x[i] - width/2) && mouse.x <= (x[i] + width/2)) {
-                    ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4(1.0f, 0.64f, 0.0f, 1.0f));
+                    ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
                     ImPlot::PlotBars("##hover", &x[i], &y[i], 1, width);
                     ImPlot::PopStyleColor();
 
@@ -560,7 +759,7 @@ void ShowAttackTrend() {
             }
 
             // Click
-            if (ImPlot::IsPlotHovered() && ImGui::IsMouseClicked(0)) {
+            if (ImGui::IsMouseClicked(0)) {
                 ImPlotPoint mouse = ImPlot::GetPlotMousePos();
                 if (!x.empty()){
                     for (int i = 0; i < x.size(); i++) {
@@ -635,17 +834,17 @@ void ShowAttackTrend() {
                 ImGui::EndTabItem();
             }
 
-            if (ImGui::BeginTabItem("Categories")) {
+            if (ImGui::BeginTabItem("Signatures")) {
                 ImGui::Text("All type of attacks:");
                 if (ImGui::BeginTable("CateTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, -1))) {
-                    ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthStretch);
+                    ImGui::TableSetupColumn("Signature", ImGuiTableColumnFlags_WidthStretch);
                     ImGui::TableSetupColumn("Numbers", ImGuiTableColumnFlags_WidthFixed, 100.0f);
                     ImGui::TableHeadersRow();
 
-                    for (const auto &[category, count] : selected_bar.category_count) {
+                    for (const auto &[signature, count] : selected_bar.signature_count) {
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
-                        ImGui::Text("%s", category.c_str());
+                        ImGui::Text("%s", signature.c_str());
                         ImGui::TableSetColumnIndex(1);
                         ImGui::Text("%lld", count);
                     }
@@ -697,7 +896,7 @@ void ShowLogTable() {
     std::vector<LogInfo*> filtered_data;
     if (filter.IsActive()) {
         for (auto log = display_logs.rbegin(); log != display_logs.rend(); log++) {
-            std::string line_search = log->src_ip + " " + log->dest_ip + " " + log->country + " " + log->category;
+            std::string line_search = log->src_ip + " " + log->dest_ip + " " + log->country + " " + log->signature;
             if (filter.PassFilter(line_search.c_str())) {
                 filtered_data.push_back(&(*log));
             }
@@ -718,7 +917,7 @@ void ShowLogTable() {
         ImGui::TableSetupColumn("Source IP Addr");
         ImGui::TableSetupColumn("Destination IP Addr");
         ImGui::TableSetupColumn("Country");
-        ImGui::TableSetupColumn("Category");
+        ImGui::TableSetupColumn("Signature");
         ImGui::TableHeadersRow();
 
         ImGuiListClipper clipper;
@@ -742,7 +941,7 @@ void ShowLogTable() {
                 ImGui::Text("%s", log->country.c_str());
 
                 ImGui::TableSetColumnIndex(4);
-                ImGui::Text("%s", log->category.c_str());
+                ImGui::Text("%s", log->signature.c_str());
             }
         }
         ImGui::EndTable();
@@ -842,8 +1041,8 @@ int main() {
                 ImGui::EndTabItem();
             }
 
-            if (ImGui::BeginTabItem("Attack Category")) {
-                ShowCategoryTable();
+            if (ImGui::BeginTabItem("Attack signature")) {
+                ShowSignatureTable();
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
