@@ -34,7 +34,8 @@
 	#define PACKAGE_VERSION MACROSTR(IP2LOCATION_API_VERSION)
 	#include <tchar.h>
 #else
-	#include "../config.h"
+	#define PACKAGE_VERSION MACROSTR(IP2LOCATION_API_VERSION)
+	// #include "../config.h"
 #endif
 
 #define	CHECK_MODE(bf, bit) ((bf & (1<<(bit))) != 0)

@@ -27,8 +27,11 @@ set(OTHERS_SOURCES
     ${OTHERS_DIR}/IP2Location.c
 )
 
+if (WIN32)
+    include_directories(${GLFW_DIR}/include)
+endif()
+
 include_directories(
-    ${GLFW_DIR}/include
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${IMPLOT_DIR}
@@ -47,5 +50,5 @@ if (WIN32)
 elseif (UNIX)
     find_package(OpenGL REQUIRED)
     find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME} glfw OpenGL::GL Threads::Threads dl X11)
+    target_link_libraries(${PROJECT_NAME} glfw OpenGL::GL Threads::Threads dl X11 rt)
 endif()
