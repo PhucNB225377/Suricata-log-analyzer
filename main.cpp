@@ -76,7 +76,7 @@ std::string format_time(double time, bool minute = false, bool second = false) {
     #ifdef _WIN32
         gmtime_s(&tm, &t);
     #else
-        gmtime_r(timer, buf);
+        gmtime_r(&t, &tm);
     #endif
     std::ostringstream ss;
     if (second) ss << std::put_time(&tm, "%H:%M:%S %d/%m/%Y");
